@@ -1,13 +1,15 @@
-# Terraform Provider for OPNsense
+# Terraform/OpenTofu Provider for OPNsense
 
-This Terraform provider enables management of various configs and resources within OPNsense®.
+This provider enables management of various configs and resources within OPNsense® using Terraform or OpenTofu.
+
+> [!NOTE]
+> This is a fork of [browningluke/terraform-provider-opnsense](https://github.com/browningluke/terraform-provider-opnsense) maintained by [EthDevOps](https://github.com/EthDevOps). It adds additional resources (e.g., Destination NAT) and is independently published.
 
 > [!WARNING]
-> This provider is under active development and makes no guarantee of stability. Breaking changes to resource and data source schemas will occur as needed until v1.0. **It is not recommended to use this provider in production environments.**
+> This provider is under active development and makes no guarantee of stability. Breaking changes to resource and data source schemas will occur as needed until v1.0.
 
 
 - [Example Usage](#example-usage)
-- [Long Road to v1](#long-road-to-v1)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Current API Coverage](#current-api-coverage)
@@ -22,8 +24,7 @@ This Terraform provider enables management of various configs and resources with
 terraform {
   required_providers {
     opnsense = {
-      source  = "browningluke/opnsense"
-      version = "~> 0.16"
+      source  = "EthDevOps/opnsense"
     }
   }
 }
@@ -69,15 +70,8 @@ resource "opnsense_firewall_filter" "allow_https" {
 }
 ```
 
-## Long Road to v1
-
-Version 1.0 will be released once the provider achieves feature-parity with the **Core** OPNsense API and all resources have comprehensive acceptance tests (see [Current API Coverage](#current-api-coverage)). Plugin resources will be added as requested (at a lower priority than requests for Core resources). There is no Plugin API converage requirement for v1.
-
-v1 represents the first release where resource and data source schemas will be guaranteed to be stable, and breaking changes to these schemas will be forbidden. Any updates to these schemas will following appropriate SemVer conventions. Until v1.0 is reached, **schemas are subject to change as needed** to improve usability and align with best practices. Users should always check the release notes when upgrading between pre-v1.0 versions to understand any breaking changes that may affect their configurations.
-
 ## Documentation
 
-- **[Terraform Registry Documentation](https://registry.terraform.io/providers/browningluke/opnsense/latest/docs)** - Full resource and data source reference
 - **[Examples](./examples/)** - Working examples for all resources
 
 ## Contributing
@@ -124,6 +118,7 @@ This provider is actively expanding to cover the OPNsense API. The tables below 
 | `Firewall/Filter`                | ✅        | ✅           |
 | `Firewall/Group`                 | ❌        | ❌           |
 | `Firewall/NPTv6`                 | ❌        | ❌           |
+| `Firewall/Destination NAT`       | 🚧       | 🚧          |
 | `Firewall/Source NAT`            | 🚧       | 🚧          |
 | `Firewall/One-to-One NAT`        | ✅        | ✅           |
 | `Interfaces/Bridge`              | ❌        | ❌           |
