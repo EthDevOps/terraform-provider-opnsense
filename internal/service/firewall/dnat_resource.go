@@ -36,7 +36,9 @@ type DNAT struct {
 	Description   string          `json:"descr"`
 	PoolOptions   api.SelectedMap `json:"poolopts"`
 	NatReflection api.SelectedMap `json:"natreflection"`
-	Pass          api.SelectedMap `json:"pass"`
+	Pass          api.SelectedMap     `json:"pass"`
+	Category      api.SelectedMapList `json:"category"`
+	Categories    string              `json:"categories"`
 }
 
 var dnatOpts = api.ReqOpts{
@@ -99,7 +101,7 @@ func (r *dnatResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Convert TF schema to OPNsense struct
-	dnatRule, err := convertDNATSchemaToStruct(data)
+	dnatRule, err := convertDNATSchemaToStruct(r.client, ctx, data)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error",
 			fmt.Sprintf("Unable to parse firewall dnat, got error: %s", err))
@@ -183,7 +185,7 @@ func (r *dnatResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Convert TF schema to OPNsense struct
-	dnatRule, err := convertDNATSchemaToStruct(data)
+	dnatRule, err := convertDNATSchemaToStruct(r.client, ctx, data)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error",
 			fmt.Sprintf("Unable to parse firewall dnat, got error: %s", err))

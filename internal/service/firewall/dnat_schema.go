@@ -1,9 +1,13 @@
 package firewall
 
 import (
+	"context"
+	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/browningluke/opnsense-go/pkg/api"
+	"github.com/browningluke/opnsense-go/pkg/firewall"
 	"github.com/browningluke/terraform-provider-opnsense/internal/tools"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -13,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -39,6 +44,7 @@ type dnatResourceModel struct {
 	PoolOptions   types.String `tfsdk:"pool_options"`
 	NatReflection types.String `tfsdk:"nat_reflection"`
 	Pass          types.String `tfsdk:"pass"`
+	Categories    types.Set    `tfsdk:"categories"`
 
 	Id types.String `tfsdk:"id"`
 }
@@ -217,6 +223,13 @@ func dnatResourceSchema() schema.Schema {
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
 			},
+			"categories": schema.SetAttribute{
+				MarkdownDescription: "Set of category IDs to apply. Defaults to `[]`.",
+				Optional:            true,
+				Computed:            true,
+				ElementType:         types.StringType,
+				Default:             setdefault.StaticValue(tools.EmptySetValue(types.StringType)),
+			},
 			"id": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "UUID of the resource.",
@@ -328,11 +341,27 @@ func dnatDataSourceSchema() dschema.Schema {
 				MarkdownDescription: "When set, a firewall rule matching this NAT rule will be automatically created.",
 				Computed:            true,
 			},
+			"categories": dschema.SetAttribute{
+				MarkdownDescription: "Set of category IDs applied to this rule.",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
 		},
 	}
 }
 
-func convertDNATSchemaToStruct(d *dnatResourceModel) (*DNAT, error) {
+func convertDNATSchemaToStruct(client *api.Client, ctx context.Context, d *dnatResourceModel) (*DNAT, error) {
+	// Resolve category UUIDs to names (DNAT API CategoryField expects names)
+	categoryUUIDs := tools.SetToStringSlice(d.Categories)
+	categoryNames := make([]string, 0, len(categoryUUIDs))
+	for _, uuid := range categoryUUIDs {
+		cat, err := api.Get(client, ctx, firewall.CategoryOpts, &firewall.Category{}, uuid)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve category UUID %s: %w", uuid, err)
+		}
+		categoryNames = append(categoryNames, cat.Name)
+	}
+
 	return &DNAT{
 		Disabled:   tools.BoolToString(!d.Enabled.ValueBool()),
 		NoRdr:      tools.BoolToString(d.NoRdr.ValueBool()),
@@ -357,10 +386,17 @@ func convertDNATSchemaToStruct(d *dnatResourceModel) (*DNAT, error) {
 		PoolOptions:   api.SelectedMap(d.PoolOptions.ValueString()),
 		NatReflection: api.SelectedMap(d.NatReflection.ValueString()),
 		Pass:          api.SelectedMap(d.Pass.ValueString()),
+		Category:      api.SelectedMapList(categoryNames),
 	}, nil
 }
 
 func convertDNATStructToSchema(d *DNAT) (*dnatResourceModel, error) {
+	// Parse category UUIDs from the volatile "categories" field (comma-separated string)
+	var categoryUUIDs []string
+	if d.Categories != "" {
+		categoryUUIDs = strings.Split(d.Categories, ",")
+	}
+
 	return &dnatResourceModel{
 		Enabled:    types.BoolValue(!tools.StringToBool(d.Disabled)),
 		NoRdr:      types.BoolValue(tools.StringToBool(d.NoRdr)),
@@ -387,5 +423,6 @@ func convertDNATStructToSchema(d *DNAT) (*dnatResourceModel, error) {
 		PoolOptions:   types.StringValue(d.PoolOptions.String()),
 		NatReflection: types.StringValue(d.NatReflection.String()),
 		Pass:          types.StringValue(d.Pass.String()),
+		Categories:    tools.StringSliceToSet(categoryUUIDs),
 	}, nil
 }
